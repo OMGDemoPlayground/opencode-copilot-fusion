@@ -13,6 +13,7 @@ import {
   routeKey,
   stableEvent,
   upsertProvider,
+  type FetchImpl,
   type FusionRoute,
   type IdSlot,
   type ModelInfo,
@@ -26,7 +27,7 @@ const route = (model = "selected-model", expires = 2_000): FusionRoute => ({
   expires_at: expires,
 })
 
-const router = (fetchImpl: typeof fetch, now = () => 1_000) =>
+const router = (fetchImpl: FetchImpl, now = () => 1_000) =>
   new FusionRouter({ token: "oauth-token", fetchImpl, now, timeoutMs: 1_000 })
 
 describe("Fusion routing", () => {

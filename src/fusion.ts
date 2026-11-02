@@ -19,13 +19,15 @@ export interface FusionRoute {
   fallback?: boolean
 }
 
+export type FetchImpl = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+
 export interface RouterOptions {
   token: string
   upstream?: string
   tier?: string
   timeoutMs?: number
   maxRoutes?: number
-  fetchImpl?: typeof fetch
+  fetchImpl?: FetchImpl
   now?: () => number
 }
 
@@ -101,7 +103,7 @@ export class FusionRouter {
   readonly tier: string
   readonly timeoutMs: number
   readonly maxRoutes: number
-  readonly fetchImpl: typeof fetch
+  readonly fetchImpl: FetchImpl
   readonly now: () => number
   readonly routes = new Map<string, FusionRoute>()
   private token: string
