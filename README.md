@@ -18,6 +18,14 @@ Add this to `opencode.json`:
 
 Use `git+https` rather than the bare `github:` shorthand so installation does not require an SSH key.
 
+## Install in OpenCode Desktop
+
+- Edit `~/.config/opencode/opencode.json` and preserve existing settings.
+- Add the Git tag spec and token-file option from the example above.
+- Restart OpenCode Desktop after changing the config.
+- Allow the first activation to finish while OpenCode downloads the Git package; a model-list command can time out before that download completes.
+- Select `copilot-fusion-direct/fusion` and run a short request.
+
 ## Provide the token
 
 Set `FUSION_TOKEN_FILE` to a JSON file containing `tokens.access_token` or a top-level `access_token`:
