@@ -18,6 +18,30 @@ export interface InputAnalysis {
   hasImage: boolean
 }
 
+const scanContent = (content: unknown, text?: string[]): boolean => {
+  if (typeof content === "string") {
+    text?.push(content)
+    return false
+  }
+  if (!Array.isArray(content)) throw new FusionError("Expected text or image content parts")
+  let hasImage = false
+  for (const part of content) {
+    if (!isRecord(part)) throw new FusionError("Expected text or image content parts")
+    if (part.type === "input_text" || part.type === "text") {
+      if (typeof part.text !== "string") throw new FusionError("Expected text content")
+      text?.push(part.text)
+      continue
+    }
+    if (part.type === "input_image") {
+      if (typeof part.image_url !== "string" || !part.image_url) throw new FusionError("Expected an image URL")
+      hasImage = true
+      continue
+    }
+    throw new FusionError("This adapter supports text and image input only")
+  }
+  return hasImage
+}
+
 export interface FusionRoute {
   session_token: string
   selected_model: ModelSelection
@@ -77,28 +101,16 @@ export function extractInput(body: unknown): InputAnalysis {
   let prompt: string | undefined
   let hasImage = false
   for (const item of body.input) {
-    if (!isRecord(item) || item.role !== "user") continue
-    if (typeof item.content === "string") {
-      prompt = item.content
+    if (!isRecord(item)) continue
+    if (item.role === "user") {
+      const text: string[] = []
+      hasImage = scanContent(item.content, text) || hasImage
+      prompt = text.length > 0 ? text.join("\n") : undefined
       continue
     }
-    if (!Array.isArray(item.content)) throw new FusionError("Expected text or image content parts")
-    const text: string[] = []
-    for (const part of item.content) {
-      if (!isRecord(part)) throw new FusionError("Expected text or image content parts")
-      if (part.type === "input_text" || part.type === "text") {
-        if (typeof part.text !== "string") throw new FusionError("Expected text content")
-        text.push(part.text)
-        continue
-      }
-      if (part.type === "input_image") {
-        if (typeof part.image_url !== "string" || !part.image_url) throw new FusionError("Expected an image URL")
-        hasImage = true
-        continue
-      }
-      throw new FusionError("This adapter supports text and image input only")
+    if ((item.type === "function_call_output" || item.type === "custom_tool_call_output") && Array.isArray(item.output)) {
+      hasImage = scanContent(item.output) || hasImage
     }
-    prompt = text.length > 0 ? text.join("\n") : undefined
   }
   if (prompt === undefined) {
     if (!hasImage) throw new FusionError("A user prompt is required to anchor Fusion routing")

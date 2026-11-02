@@ -137,6 +137,13 @@ describe("request preparation", () => {
       { role: "user", content: [{ type: "input_text", text: "see image" }] },
       { role: "user", content: [{ type: "input_image", image_url: "data:image/png;base64,AAAA" }] },
     ] })).toEqual({ prompt: "Describe the attached image.", hasImage: true })
+    expect(extractInput({ input: [
+      { role: "user", content: [{ type: "input_text", text: "read the file" }] },
+      { type: "function_call_output", output: [
+        { type: "input_text", text: "Attached file: image.png" },
+        { type: "input_image", image_url: "data:image/png;base64,AAAA" },
+      ] },
+    ] })).toEqual({ prompt: "read the file", hasImage: true })
   })
 
   test("preserves tools and adds encrypted reasoning", () => {

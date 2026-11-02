@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "opencode-copilot-fusion",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Copilot Fusion provider for OpenCode V2",
   "type": "module",
   "license": "MIT",

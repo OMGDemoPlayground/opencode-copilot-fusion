@@ -11,7 +11,7 @@ Add this to `opencode.json`:
   "$schema": "https://opencode.ai/config.json",
   "model": "copilot-fusion-direct/fusion",
   "plugins": [
-    "git+https://github.com/OMGDemoPlayground/opencode-copilot-fusion.git#v0.1.1"
+    "git+https://github.com/OMGDemoPlayground/opencode-copilot-fusion.git#v0.1.2"
   ]
 }
 ```
@@ -28,10 +28,11 @@ Use `git+https` rather than the bare `github:` shorthand so installation does no
 
 ## Image input
 
-- Attach PNG, JPEG, GIF, or WebP images to an OpenCode prompt.
+- Attach PNG, JPEG, GIF, or WebP images to an OpenCode prompt, including multiple images in one prompt.
 - Keep the model on `copilot-fusion-direct/fusion`; the plugin marks it image-capable.
 - The plugin routes image requests with `has_image: true`, selects a vision-capable Fusion model, and returns the normal Responses stream.
 - Reject image requests when Fusion selects a model without vision instead of silently dropping the image.
+- Detect images returned by OpenCode tools such as `read` through `function_call_output` content.
 
 ## Provide the token
 
@@ -64,7 +65,7 @@ Pass options through the plugin entry when needed:
 {
   "plugins": [
     {
-      "package": "git+https://github.com/OMGDemoPlayground/opencode-copilot-fusion.git#v0.1.1",
+      "package": "git+https://github.com/OMGDemoPlayground/opencode-copilot-fusion.git#v0.1.2",
       "options": {
         "tokenFile": "/absolute/path/to/tokens.json",
         "tier": "intelligence"
