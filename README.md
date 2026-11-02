@@ -90,7 +90,9 @@ bun run typecheck
 
 ## Limits
 
-- Text input and Responses-capable models only.
+- Text and image input with Responses-capable models only.
+- Upstream image count and size limits still apply; the plugin does not pre-validate them.
+- PDF input is not handled by this image path.
 - No token refresh yet.
 - No WebSocket transport or Copilot CLI escalation policy.
 - The `/auto` endpoint is a private Copilot surface and can change.
