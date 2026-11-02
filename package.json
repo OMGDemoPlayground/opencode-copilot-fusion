@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "opencode-copilot-fusion",
+  "version": "0.1.0",
+  "description": "Copilot Fusion provider for OpenCode V2",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OMGDemoPlayground/opencode-copilot-fusion.git"
+  },
+  "homepage": "https://github.com/OMGDemoPlayground/opencode-copilot-fusion",
+  "bugs": {
+    "url": "https://github.com/OMGDemoPlayground/opencode-copilot-fusion/issues"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "copilot",
+    "fusion"
+  ],
+  "exports": {
+    ".": "./index.ts",
+    "./server": "./index.ts"
+  },
+  "files": [
+    "index.ts",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "24.12.2",
+    "typescript": "5.9.3"
+  }
+}
