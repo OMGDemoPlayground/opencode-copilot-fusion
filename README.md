@@ -11,7 +11,7 @@ Add this to `opencode.json`:
   "$schema": "https://opencode.ai/config.json",
   "model": "copilot-fusion-direct/fusion",
   "plugins": [
-    "git+https://github.com/OMGDemoPlayground/opencode-copilot-fusion.git#v0.1.0"
+    "git+https://github.com/OMGDemoPlayground/opencode-copilot-fusion.git#v0.1.1"
   ]
 }
 ```
@@ -25,6 +25,13 @@ Use `git+https` rather than the bare `github:` shorthand so installation does no
 - Restart OpenCode Desktop after changing the config.
 - Allow the first activation to finish while OpenCode downloads the Git package; a model-list command can time out before that download completes.
 - Select `copilot-fusion-direct/fusion` and run a short request.
+
+## Image input
+
+- Attach PNG, JPEG, GIF, or WebP images to an OpenCode prompt.
+- Keep the model on `copilot-fusion-direct/fusion`; the plugin marks it image-capable.
+- The plugin routes image requests with `has_image: true`, selects a vision-capable Fusion model, and returns the normal Responses stream.
+- Reject image requests when Fusion selects a model without vision instead of silently dropping the image.
 
 ## Provide the token
 
@@ -57,7 +64,7 @@ Pass options through the plugin entry when needed:
 {
   "plugins": [
     {
-      "package": "git+https://github.com/OMGDemoPlayground/opencode-copilot-fusion.git#v0.1.0",
+      "package": "git+https://github.com/OMGDemoPlayground/opencode-copilot-fusion.git#v0.1.1",
       "options": {
         "tokenFile": "/absolute/path/to/tokens.json",
         "tier": "intelligence"

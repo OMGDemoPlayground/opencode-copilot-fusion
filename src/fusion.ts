@@ -10,6 +10,12 @@ export class FusionError extends Error {}
 export interface ModelSelection {
   id: string
   supported_endpoints?: string[]
+  vision?: boolean
+}
+
+export interface InputAnalysis {
+  prompt: string
+  hasImage: boolean
 }
 
 export interface FusionRoute {
@@ -64,26 +70,45 @@ export interface ProviderEditor {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 
-const textPart = (part: unknown): string | undefined => {
-  if (!isRecord(part)) return undefined
-  if (part.type !== "input_text" && part.type !== "text") return undefined
-  return typeof part.text === "string" ? part.text : undefined
+export function extractInput(body: unknown): InputAnalysis {
+  if (!isRecord(body)) throw new FusionError("Expected a Responses request object")
+  if (typeof body.input === "string") return { prompt: body.input, hasImage: false }
+  if (!Array.isArray(body.input)) throw new FusionError("Expected text or a Responses input array")
+  let prompt: string | undefined
+  let hasImage = false
+  for (const item of body.input) {
+    if (!isRecord(item) || item.role !== "user") continue
+    if (typeof item.content === "string") {
+      prompt = item.content
+      continue
+    }
+    if (!Array.isArray(item.content)) throw new FusionError("Expected text or image content parts")
+    const text: string[] = []
+    for (const part of item.content) {
+      if (!isRecord(part)) throw new FusionError("Expected text or image content parts")
+      if (part.type === "input_text" || part.type === "text") {
+        if (typeof part.text !== "string") throw new FusionError("Expected text content")
+        text.push(part.text)
+        continue
+      }
+      if (part.type === "input_image") {
+        if (typeof part.image_url !== "string" || !part.image_url) throw new FusionError("Expected an image URL")
+        hasImage = true
+        continue
+      }
+      throw new FusionError("This adapter supports text and image input only")
+    }
+    prompt = text.length > 0 ? text.join("\n") : undefined
+  }
+  if (prompt === undefined) {
+    if (!hasImage) throw new FusionError("A user prompt is required to anchor Fusion routing")
+    prompt = "Describe the attached image."
+  }
+  return { prompt, hasImage }
 }
 
 export function extractPrompt(body: unknown): string {
-  if (!isRecord(body)) throw new FusionError("Expected a Responses request object")
-  if (typeof body.input === "string") return body.input
-  if (!Array.isArray(body.input)) throw new FusionError("Expected text or a Responses input array")
-  for (let index = body.input.length - 1; index >= 0; index--) {
-    const item = body.input[index]
-    if (!isRecord(item) || item.role !== "user") continue
-    if (typeof item.content === "string") return item.content
-    if (!Array.isArray(item.content)) throw new FusionError("Expected text content parts")
-    const parts = item.content.map(textPart)
-    if (parts.some((part) => part === undefined)) throw new FusionError("This adapter supports text input only")
-    return (parts as string[]).join("\n")
-  }
-  throw new FusionError("A user prompt is required to anchor Fusion routing")
+  return extractInput(body).prompt
 }
 
 export function prepareResponsesBody(body: Record<string, unknown>, route: FusionRoute): Record<string, unknown> {
@@ -94,8 +119,8 @@ export function prepareResponsesBody(body: Record<string, unknown>, route: Fusio
   return { ...body, model: route.selected_model.id, store: false, include }
 }
 
-export function routeKey(sessionID: string, prompt: string): string {
-  return `${sessionID}:${createHash("sha256").update(prompt).digest("hex")}`
+export function routeKey(sessionID: string, prompt: string, hasImage = false): string {
+  return `${sessionID}:${hasImage ? 1 : 0}:${createHash("sha256").update(prompt).digest("hex")}`
 }
 
 export class FusionRouter {
@@ -126,8 +151,8 @@ export class FusionRouter {
     this.routes.clear()
   }
 
-  async route(sessionID: string, prompt: string): Promise<FusionRoute> {
-    const key = routeKey(sessionID, prompt)
+  async route(sessionID: string, prompt: string, hasImage = false): Promise<FusionRoute> {
+    const key = routeKey(sessionID, prompt, hasImage)
     this.prune()
     const cached = this.routes.get(key)
     if (cached) return cached
@@ -137,7 +162,7 @@ export class FusionRouter {
       headers: this.headers(sessionID),
       body: JSON.stringify({
         prompt,
-        has_image: false,
+        has_image: hasImage,
         multi_turn: { routing_intent: "anchor", turns_since_anchor: 0 },
         tier: this.tier,
         hydra_rl_multi_turn: {},
@@ -160,6 +185,11 @@ export class FusionRouter {
         supported_endpoints: Array.isArray(selected.supported_endpoints)
           ? selected.supported_endpoints.filter((item): item is string => typeof item === "string")
           : [],
+        vision:
+          selected.vision === true ||
+          (isRecord(selected.capabilities) &&
+            isRecord(selected.capabilities.supports) &&
+            selected.capabilities.supports.vision === true),
       },
       expires_at: typeof value.expires_at === "number" ? value.expires_at : 0,
       fallback: value.fallback === true,
@@ -172,6 +202,9 @@ export class FusionRouter {
     }
     if (!route.selected_model.supported_endpoints?.includes("/responses")) {
       throw new FusionError("Selected Fusion model does not support Responses; no fallback")
+    }
+    if (hasImage && route.selected_model.vision !== true) {
+      throw new FusionError("Selected Fusion model does not support image input")
     }
     if (route.expires_at <= this.now() + 30) {
       throw new FusionError("Fusion returned no valid expiry")
@@ -358,7 +391,7 @@ export function modelInfo(): ModelInfo {
     providerID: PROVIDER_ID,
     name: "Fusion Intelligence",
     package: "@opencode/ai/providers/openai/responses",
-    capabilities: { tools: true, input: ["text"], output: ["text"] },
+    capabilities: { tools: true, input: ["text", "image"], output: ["text"] },
     variants: [],
     time: { released: 0 },
     cost: [],

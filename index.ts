@@ -7,7 +7,7 @@ import {
   MODEL_ID,
   PROVIDER_ID,
   buildUpstreamRequest,
-  extractPrompt,
+  extractInput,
   normalizeHttpResponse,
   prepareResponsesBody,
   routeKey,
@@ -79,12 +79,12 @@ const plugin = {
           return
         }
         if (typeof body !== "object" || body === null || (body as { model?: unknown }).model !== MODEL_ID) return
-        const prompt = extractPrompt(body)
-        const known = router.routes.get(routeKey(event.sessionID, prompt))
+        const input = extractInput(body)
+        const known = router.routes.get(routeKey(event.sessionID, input.prompt, input.hasImage))
         const reused = known !== undefined && known.expires_at > Date.now() / 1000 + 30
         const currentToken = await token()
         router.setToken(currentToken)
-        const route = await router.route(event.sessionID, prompt)
+        const route = await router.route(event.sessionID, input.prompt, input.hasImage)
         event.request = buildUpstreamRequest(
           event.request,
           prepareResponsesBody(body as Record<string, unknown>, route),

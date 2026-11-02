@@ -5,6 +5,7 @@ import {
   PROVIDER_ID,
   buildUpstreamRequest,
   createStableSseStream,
+  extractInput,
   extractPrompt,
   modelInfo,
   normalizeSseFrame,
@@ -23,7 +24,7 @@ import {
 
 const route = (model = "selected-model", expires = 2_000): FusionRoute => ({
   session_token: "session-token",
-  selected_model: { id: model, supported_endpoints: ["/responses"] },
+  selected_model: { id: model, supported_endpoints: ["/responses"], vision: true },
   expires_at: expires,
 })
 
@@ -93,6 +94,23 @@ describe("Fusion routing", () => {
   test("computes a stable route key", () => {
     expect(routeKey("a", "hi")).toBe(routeKey("a", "hi"))
     expect(routeKey("a", "hi")).not.toBe(routeKey("b", "hi"))
+    expect(routeKey("a", "hi", true)).not.toBe(routeKey("a", "hi", false))
+  })
+
+  test("routes image requests with has_image and rejects non-vision routes", async () => {
+    const calls: Array<{ init: RequestInit }> = []
+    const instance = router(async (_url, init) => {
+      calls.push({ init: init ?? {} })
+      return new Response(JSON.stringify(route()))
+    })
+    await instance.route("session", "Read image", true)
+    expect(JSON.parse(String(calls[0].init.body)).has_image).toBe(true)
+
+    const noVision = router(async () => new Response(JSON.stringify({
+      ...route(),
+      selected_model: { id: "text-only", supported_endpoints: ["/responses"], vision: false },
+    })))
+    await expect(noVision.route("session", "Read image", true)).rejects.toThrow("image input")
   })
 })
 
@@ -102,6 +120,23 @@ describe("request preparation", () => {
       { type: "function_call_output", output: "written" }] })).toBe("first")
     expect(extractPrompt({ input: "plain" })).toBe("plain")
     expect(() => extractPrompt({ input: [{ role: "user", content: [{ type: "input_image" }] }] })).toThrow()
+  })
+
+  test("accepts image and text content and detects images across the conversation", () => {
+    expect(extractInput({ input: [
+      { role: "user", content: [
+        { type: "input_text", text: "Read this" },
+        { type: "input_image", image_url: "data:image/png;base64,AAAA" },
+      ] },
+      { type: "function_call_output", output: "written" },
+    ] })).toEqual({ prompt: "Read this", hasImage: true })
+    expect(extractInput({ input: [{ role: "user", content: [
+      { type: "input_image", image_url: "data:image/png;base64,AAAA" },
+    ] }] })).toEqual({ prompt: "Describe the attached image.", hasImage: true })
+    expect(extractInput({ input: [
+      { role: "user", content: [{ type: "input_text", text: "see image" }] },
+      { role: "user", content: [{ type: "input_image", image_url: "data:image/png;base64,AAAA" }] },
+    ] })).toEqual({ prompt: "Describe the attached image.", hasImage: true })
   })
 
   test("preserves tools and adds encrypted reasoning", () => {
@@ -189,6 +224,7 @@ describe("provider registration", () => {
     expect(added[0].info).toEqual(providerInfo())
     expect(added[0].models[0]).toEqual(modelInfo())
     expect(added[0].models[0].capabilities.tools).toBe(true)
+    expect(added[0].models[0].capabilities.input).toContain("image")
     expect(added[0].models[0].id).toBe(MODEL_ID)
     expect(added[0].info.id).toBe(PROVIDER_ID)
   })
